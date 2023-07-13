@@ -22,6 +22,29 @@ swag init && go run main.go
 
 # Structure
 
+```mermaid
+flowchart LR
+		subgraph ide1 [Openstack]
+		B --> Y([VM generate])
+		C --> Y
+		D --> Y
+		end
+		subgraph ide2 [Kubernetes]
+		Y --> I{Control Plane}
+		Y --> J{Data Plane}
+		end
+		Z[admin] --> |Set config | A
+		A --> K([health checking])
+		K --> I
+		K --> J
+	  A[Kaps] --- |compute service| B[nova]
+		A[Kaps] --- |network service| C[neutron]
+		A[Kaps] --- |storage service| D[cinder]
+		A--> |resource management| X[(Database)]
+		X --- K
+```
+
+
 ```bash
 .
 ├── README.md
