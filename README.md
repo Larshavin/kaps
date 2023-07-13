@@ -91,6 +91,6 @@ flowchart LR
 # Docs
 TBU
 
-# Contact
+# Contact Us
 
 Email : syyang@forwiz.com
