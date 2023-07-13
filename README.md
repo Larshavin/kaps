@@ -7,7 +7,14 @@ This is the K8s [Cluster API](https://cluster-api.sigs.k8s.io/) or Openstack [Ma
 
 # Progress
 
-![30%](http://progress-bar.dev/30?title=kaps)
+![30%](http://progress-bar.dev/25?title=kaps)
+
+:checkered_flag: **Status**
+
+ &ensp; :heavy_check_mark: Using Openstack APi without [gopher cloud package](http://gophercloud.io/)
+
+ &ensp; :heavy_check_mark: Create Automatically Control-Plane Virtual Machine on Openstack
+
 
 # Quick Start
 
@@ -19,6 +26,7 @@ This is the K8s [Cluster API](https://cluster-api.sigs.k8s.io/) or Openstack [Ma
 ```bash
 swag init && go run main.go
 ```
+4) Check the Swagger docs in [host]:[port]/swagger/index.html
 
 # Structure
 
