@@ -11,7 +11,7 @@ This is the K8s [Cluster API](https://cluster-api.sigs.k8s.io/) or Openstack [Ma
 
 :checkered_flag: **Status**
 
- &ensp; :heavy_check_mark: Using Openstack APi without [gopher cloud package](http://gophercloud.io/)
+ &ensp; :heavy_check_mark: Using Openstack API without [gopher cloud package](http://gophercloud.io/)
 
  &ensp; :heavy_check_mark: Create Automatically Control-Plane Virtual Machine on Openstack
 
