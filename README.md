@@ -1,7 +1,5 @@
 # KAPS.md
 
-[emoji-cheat-sheet/README.md at master · ikatyang/emoji-cheat-sheet (github.com)](https://github.com/ikatyang/emoji-cheat-sheet/blob/master/README.md#symbols)
-
 Kubernetes Auto Provisioning Service on Echo-e cloud system ( State of PoC )
 
 This is the K8s [Cluster API](https://cluster-api.sigs.k8s.io/) or Openstack [Magnum](https://docs.openstack.org/magnum/latest/) like lightweight custom project that uses minimal processes.
