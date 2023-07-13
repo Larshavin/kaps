@@ -1,0 +1,164 @@
+basePath: /
+definitions:
+  types.KaasCreateRequest:
+    properties:
+      flavor:
+        type: string
+      keypair:
+        type: string
+      name:
+        type: string
+      network:
+        type: string
+      nodes:
+        items:
+          properties:
+            fixed_ip:
+              type: string
+            kind:
+              type: string
+          type: object
+        type: array
+      version:
+        type: string
+    type: object
+  types.Server:
+    properties:
+      flavorRef:
+        type: string
+      imageRef:
+        type: string
+      key_name:
+        type: string
+      name:
+        type: string
+      networks:
+        items:
+          $ref: '#/definitions/types.ServerCreateNetwork'
+        type: array
+      security_groups:
+        items:
+          $ref: '#/definitions/types.ServerCreateSecurityGroup'
+        type: array
+      user_data:
+        type: string
+    type: object
+  types.ServerCreateNetwork:
+    properties:
+      fixed_ip:
+        type: string
+      uuid:
+        type: string
+    type: object
+  types.ServerCreateRequest:
+    properties:
+      server:
+        $ref: '#/definitions/types.Server'
+    type: object
+  types.ServerCreateSecurityGroup:
+    properties:
+      name:
+        type: string
+    type: object
+externalDocs:
+  description: OpenAPI
+  url: https://swagger.io/resources/open-api/
+host: 192.168.15.248:3000
+info:
+  contact:
+    email: support@swagger.io
+    name: API Support
+    url: http://www.swagger.io/support
+  description: This is a sample server celler server.
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  termsOfService: http://swagger.io/terms/
+  title: Swagger Example API
+  version: "1.0"
+paths:
+  /api/kaas/{id}:
+    post:
+      consumes:
+      - application/json
+      description: Create openstack Server
+      parameters:
+      - description: cluster info
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/types.KaasCreateRequest'
+      - description: project id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+        "400":
+          description: Bad Request
+        "404":
+          description: Not Found
+        "500":
+          description: Internal Server Error
+      summary: Create openstack Server
+      tags:
+      - server_create
+  /api/network:
+    get:
+      consumes:
+      - application/json
+      description: get Network List
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+        "400":
+          description: Bad Request
+        "404":
+          description: Not Found
+        "500":
+          description: Internal Server Error
+      summary: Network List
+      tags:
+      - networks
+  /api/server/{id}:
+    post:
+      consumes:
+      - application/json
+      description: Create openstack Server
+      parameters:
+      - description: server info
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/types.ServerCreateRequest'
+      - description: project id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+        "400":
+          description: Bad Request
+        "404":
+          description: Not Found
+        "500":
+          description: Internal Server Error
+      summary: Create openstack Server
+      tags:
+      - server_create
+securityDefinitions:
+  BasicAuth:
+    type: basic
+swagger: "2.0"
