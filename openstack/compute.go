@@ -38,19 +38,19 @@ func GetServersList(tokenID string) (map[string]interface{}, error) {
 
 type ServerDetailResponse struct {
 	Server struct {
-		Addresses         map[string][]Address     `json:"addresses"`
-		Name              string                   `json:"name"`
-		ID                string                   `json:"id"`
-		Description       string                   `json:"description"`
-		TenantID          string                   `json:"tenant_id"`
-		Status            string                   `json:"status"`
-		Locked            bool                     `json:"locked"`
-		AvailabilityZone  string                   `json:"OS-EXT-AZ:availability_zone"`
-		Created           string                   `json:"created"`
-		HostName          string                   `json:"OS-EXT-SRV-ATTR:host"`
-		Flavor            Flavor                   `json:"flavor"`
-		KeyName           string                   `json:"key_name"`
-		Image             string                   `json:"image"`
+		Addresses        map[string][]Address `json:"addresses"`
+		Name             string               `json:"name"`
+		ID               string               `json:"id"`
+		Description      string               `json:"description"`
+		TenantID         string               `json:"tenant_id"`
+		Status           string               `json:"status"`
+		Locked           bool                 `json:"locked"`
+		AvailabilityZone string               `json:"OS-EXT-AZ:availability_zone"`
+		Created          string               `json:"created"`
+		HostName         string               `json:"OS-EXT-SRV-ATTR:host"`
+		Flavor           Flavor               `json:"flavor"`
+		KeyName          string               `json:"key_name"`
+		// Image             string                   `json:"image"`
 		VolumeAttachments []map[string]interface{} `json:"os-extended-volumes:volumes_attached"`
 		SecurityGroups    []struct {
 			Name string `json:"name"`

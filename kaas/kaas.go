@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -106,7 +107,7 @@ func PostKaaSHandler() gin.HandlerFunc {
 				FixedIP: &kaasRequest.Nodes[0].FixedIP,
 			},
 			{
-				UUID:    "d64dbfc6-46de-4f2c-8b65-12c9d29a8b7e",
+				UUID:    "abe6e177-dd45-4923-9cbd-ae2a09ce4fb9", // mgmt : "abe6e177-dd45-4923-9cbd-ae2a09ce4fb9", provider :"d64dbfc6-46de-4f2c-8b65-12c9d29a8b7e",
 				FixedIP: nil,
 			},
 		}
@@ -125,14 +126,81 @@ func PostKaaSHandler() gin.HandlerFunc {
 		mainControlPlaneNode.Server.Image = "e62a8d62-02f9-4bbd-ae13-ca298faec579" // image : k8s-centos8-openstack
 		mainControlPlaneNode.Server.Script = encodedScript
 
-		response, err := openstack.CreateServer(tokenID, projectID, mainControlPlaneNode)
+		responseOfServerCreation, err := openstack.CreateServer(tokenID, projectID, mainControlPlaneNode)
 		if err != nil {
 			panic(err)
+		}
+
+		server, ok := responseOfServerCreation["server"].(map[string]interface{})
+		if !ok {
+			fmt.Println("Invalid server data")
+			panic(ok)
+		}
+
+		id, ok := server["id"].(string)
+		if !ok {
+			fmt.Println("Invalid id")
+			panic(ok)
+		}
+
+		var fixedMgmtIP, status string
+		timeout := time.After(60 * time.Second) // Set the timeout to 60 seconds
+
+	OuterLoopForVMStatus:
+		for fixedMgmtIP == "" && status != "ACTIVE" {
+			select {
+			case <-timeout:
+				fmt.Println("Timeout reached")
+				break OuterLoopForVMStatus // Exit the outer loop if timeout is reached
+			default:
+				createVMdetail, err := openstack.GetServerDetail(tokenID, id)
+				if err != nil {
+					panic(err)
+				}
+				if createVMdetail.Server.Status == "ACTIVE" {
+					for k, v := range createVMdetail.Server.Addresses {
+						if k == "mgmt" {
+							fixedMgmtIP = v[0].Addr
+							break OuterLoopForVMStatus // Exit the outer loop if fixedMgmtIP is obtained
+						}
+					}
+				}
+				time.Sleep(1 * time.Second)
+			}
 		}
 
 		// 4. Wait for the main k8s control-Plane node to be ready
 		// 	  Retry to get cluster info from the main k8s control-Plane node by SSH
 		//    And save the k8s cluster's hash & token data in DB (MongoDB)
+
+		keyFile := filepath.Join(filepath.Dir(mainPath), "ssh/k8s.pem")
+
+		sshClient := utils.SSH{
+			IP:   fixedMgmtIP, // use Mgmt IP, but it is not known yet.
+			User: "centos",
+			Port: 22,
+			Cert: keyFile, // Password or Key file path
+		}
+
+		var kubeadmJoinOutput string
+		timeout = time.After(120 * time.Second) // Set the timeout to 120 seconds
+
+	OuterLoopForSSH:
+		for kubeadmJoinOutput == "" {
+			select {
+			case <-timeout:
+				fmt.Println("Timeout reached")
+				break OuterLoopForSSH // Exit the outer loop if timeout is reached
+			default:
+				kubeadmJoinOutput, err = utils.GetKubeadmJoinOutput(sshClient, utils.CertPublicKeyFile)
+				if err != nil {
+					fmt.Println(err)
+					break
+				}
+				fmt.Println(kubeadmJoinOutput)
+				time.Sleep(1 * time.Second)
+			}
+		}
 
 		// 5. Make the Data-plane nodes on openstack
 
@@ -141,7 +209,8 @@ func PostKaaSHandler() gin.HandlerFunc {
 		c.JSON(http.StatusOK, gin.H{
 			"content":  kaasRequest,
 			"keypair":  keypair,
-			"response": response,
+			"response": responseOfServerCreation,
+			"cmd":      kubeadmJoinOutput,
 		})
 	}
 }
