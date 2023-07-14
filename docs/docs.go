@@ -153,6 +153,18 @@ const docTemplate = `{
         "types.KaasCreateRequest": {
             "type": "object",
             "properties": {
+                "control_plane_nodes": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/types.Node"
+                    }
+                },
+                "data_plane_nodes": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/types.Node"
+                    }
+                },
                 "flavor": {
                     "type": "string"
                 },
@@ -165,22 +177,22 @@ const docTemplate = `{
                 "network": {
                     "type": "string"
                 },
-                "nodes": {
-                    "type": "array",
-                    "items": {
-                        "type": "object",
-                        "properties": {
-                            "fixed_ip": {
-                                "type": "string"
-                            },
-                            "kind": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                },
                 "version": {
                     "type": "string"
+                }
+            }
+        },
+        "types.Node": {
+            "type": "object",
+            "properties": {
+                "fixed_ip": {
+                    "type": "string"
+                },
+                "kind": {
+                    "type": "string"
+                },
+                "main": {
+                    "type": "boolean"
                 }
             }
         },

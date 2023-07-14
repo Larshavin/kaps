@@ -2,6 +2,14 @@ basePath: /
 definitions:
   types.KaasCreateRequest:
     properties:
+      control_plane_nodes:
+        items:
+          $ref: '#/definitions/types.Node'
+        type: array
+      data_plane_nodes:
+        items:
+          $ref: '#/definitions/types.Node'
+        type: array
       flavor:
         type: string
       keypair:
@@ -10,17 +18,17 @@ definitions:
         type: string
       network:
         type: string
-      nodes:
-        items:
-          properties:
-            fixed_ip:
-              type: string
-            kind:
-              type: string
-          type: object
-        type: array
       version:
         type: string
+    type: object
+  types.Node:
+    properties:
+      fixed_ip:
+        type: string
+      kind:
+        type: string
+      main:
+        type: boolean
     type: object
   types.Server:
     properties:

@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -43,11 +44,14 @@ func PostKaaSHandler() gin.HandlerFunc {
 		}
 		fmt.Println(kaasRequest)
 
-		// 0. Connect Websocket to Client
+		// 0. Connect Websocket to Client & setup server create channel
 
-		// 1. Save Nodes information in DB (MongoDB) & check the main control-plane node
+		mainResultChannel := make(chan map[string]interface{})
+		resultChannel := make(chan map[string]interface{})
 
-		// 1.1 Read the contents of the shell script file
+		// 1. Save Nodes information(cluster info) in DB (MongoDB)
+
+		// 1.1 Read the contents of the shell script file for main control-plane node
 		// Get the path to the main.go file
 		mainPath, err := os.Getwd()
 		if err != nil {
@@ -61,9 +65,9 @@ func PostKaaSHandler() gin.HandlerFunc {
 			panic(err)
 		}
 
-		// 1.2: change shell script file contents
+		// 1.2: change shell script file contents for main control-plane node
 		changeVar := map[string]string{
-			"control_plane_ip": kaasRequest.Nodes[0].FixedIP,
+			"control_plane_ip": kaasRequest.ControlPlaneNodes[0].FixedIP,
 			"k8s_network_cidr": "172.16.0.0/16",
 		}
 		updatedScript, err := utils.FixShellScriptVariables(string(scriptContents), changeVar)
@@ -93,59 +97,124 @@ func PostKaaSHandler() gin.HandlerFunc {
 			panic(err)
 		}
 
-		// 3. Create the main k8s control-Plane node on openstack
-		randomString, err := utils.GenerateRandomString(8)
-		if err != nil {
-			panic(err)
-		}
-		var mainControlPlaneNode types.ServerCreateRequest
-		mainControlPlaneNode.Server.Name = kaasRequest.Name + "-cp-" + randomString
-		mainControlPlaneNode.Server.Flavor = "3"
-		mainControlPlaneNode.Server.Networks = []types.ServerCreateNetwork{
-			{
-				UUID:    kaasRequest.NetworkId,
-				FixedIP: &kaasRequest.Nodes[0].FixedIP,
-			},
-			{
-				UUID:    "abe6e177-dd45-4923-9cbd-ae2a09ce4fb9", // mgmt : "abe6e177-dd45-4923-9cbd-ae2a09ce4fb9", provider :"d64dbfc6-46de-4f2c-8b65-12c9d29a8b7e",
-				FixedIP: nil,
-			},
-		}
-		mainControlPlaneNode.Server.SecurityGroups = []types.ServerCreateSecurityGroup{
-			{
-				Name: "default",
-			},
-			{
-				Name: "k8s-common",
-			},
-			{
-				Name: "k8s-control-plane",
-			},
-		}
-		mainControlPlaneNode.Server.KeyName = kaasRequest.KeyName
-		mainControlPlaneNode.Server.Image = "e62a8d62-02f9-4bbd-ae13-ca298faec579" // image : k8s-centos8-openstack
-		mainControlPlaneNode.Server.Script = encodedScript
+		// 3. Create the main k8s control-Plane node on openstack (with shell script)
+		// 	  And send the result to the resultChannel
+		fmt.Println("Create the main k8s control-Plane node on openstack (with shell script)")
+		for i := 0; i < len(kaasRequest.ControlPlaneNodes); i++ {
+			randomString, err := utils.GenerateRandomString(8)
+			if err != nil {
+				panic(err)
+			}
+			var mainControlPlaneNode types.ServerCreateRequest
+			mainControlPlaneNode.Server.Name = kaasRequest.Name + "-cp-" + randomString
+			mainControlPlaneNode.Server.Flavor = "3"
+			mainControlPlaneNode.Server.KeyName = kaasRequest.KeyName
+			mainControlPlaneNode.Server.Image = "e62a8d62-02f9-4bbd-ae13-ca298faec579" // image : k8s-centos8-openstack
+			mainControlPlaneNode.Server.SecurityGroups = []types.ServerCreateSecurityGroup{
+				{
+					Name: "default",
+				},
+				{
+					Name: "k8s-common",
+				},
+				{
+					Name: "k8s-control-plane",
+				},
+			}
+			if *kaasRequest.ControlPlaneNodes[i].Main {
+				mainControlPlaneNode.Server.Networks = []types.ServerCreateNetwork{
+					{
+						UUID:    kaasRequest.NetworkId,
+						FixedIP: &kaasRequest.ControlPlaneNodes[i].FixedIP,
+					},
+					{
+						UUID:    "abe6e177-dd45-4923-9cbd-ae2a09ce4fb9", // mgmt : "abe6e177-dd45-4923-9cbd-ae2a09ce4fb9", provider :"d64dbfc6-46de-4f2c-8b65-12c9d29a8b7e",
+						FixedIP: nil,
+					},
+				}
+				mainControlPlaneNode.Server.Script = encodedScript
+				responseOfServerCreation, err := openstack.CreateServer(tokenID, projectID, mainControlPlaneNode)
+				if err != nil {
+					panic(err)
+				}
+				fmt.Println("Main : ", mainControlPlaneNode.Server.Name, responseOfServerCreation)
+				go func() {
+					mainResultChannel <- responseOfServerCreation
+				}()
+			} else {
+				mainControlPlaneNode.Server.Networks = []types.ServerCreateNetwork{
+					{
+						UUID:    kaasRequest.NetworkId,
+						FixedIP: &kaasRequest.ControlPlaneNodes[i].FixedIP,
+					},
+				}
 
-		responseOfServerCreation, err := openstack.CreateServer(tokenID, projectID, mainControlPlaneNode)
-		if err != nil {
-			panic(err)
+				responseOfServerCreation, err := openstack.CreateServer(tokenID, projectID, mainControlPlaneNode)
+				if err != nil {
+					panic(err)
+				}
+				fmt.Println(mainControlPlaneNode.Server.Name, responseOfServerCreation)
+				go func() {
+					resultChannel <- responseOfServerCreation
+				}()
+			}
 		}
 
-		server, ok := responseOfServerCreation["server"].(map[string]interface{})
+		// 4. Create the Data-plane nodes on openstack (without shell script)
+		// 	  And send the result to the resultChannel
+		fmt.Println("Create the Data-plane nodes on openstack (without shell script)")
+		for i := 0; i < len(kaasRequest.DataPlaneNodes); i++ {
+			randomString, err := utils.GenerateRandomString(8)
+			if err != nil {
+				panic(err)
+			}
+			var mainControlPlaneNode types.ServerCreateRequest
+			mainControlPlaneNode.Server.Name = kaasRequest.Name + "-dp-" + randomString
+			mainControlPlaneNode.Server.Flavor = "3"
+			mainControlPlaneNode.Server.KeyName = kaasRequest.KeyName
+			mainControlPlaneNode.Server.Image = "e62a8d62-02f9-4bbd-ae13-ca298faec579"
+			mainControlPlaneNode.Server.SecurityGroups = []types.ServerCreateSecurityGroup{
+				{
+					Name: "default",
+				},
+				{
+					Name: "k8s-common",
+				},
+				{
+					Name: "k8s-data-plane",
+				},
+			} // image : k8s-centos8-openstack
+			mainControlPlaneNode.Server.Networks = []types.ServerCreateNetwork{
+				{
+					UUID:    kaasRequest.NetworkId,
+					FixedIP: &kaasRequest.DataPlaneNodes[i].FixedIP,
+				},
+			}
+			responseOfServerCreation, err := openstack.CreateServer(tokenID, projectID, mainControlPlaneNode)
+			if err != nil {
+				panic(err)
+			}
+			fmt.Println(mainControlPlaneNode.Server.Name, responseOfServerCreation)
+			go func() {
+				resultChannel <- responseOfServerCreation
+			}()
+		}
+
+		// 5. Handle creation response from main control-plane node and run SSH command to get join command
+		mainResponce := <-mainResultChannel
+		server, ok := mainResponce["server"].(map[string]interface{})
 		if !ok {
 			fmt.Println("Invalid server data")
 			panic(ok)
 		}
-
 		id, ok := server["id"].(string)
 		if !ok {
 			fmt.Println("Invalid id")
 			panic(ok)
 		}
-
+		// 5.1 get fixedMgmtIP and status of main control-plane node If status is ACTIVE, get fixedMgmtIP
 		var fixedMgmtIP, status string
 		timeout := time.After(60 * time.Second) // Set the timeout to 60 seconds
-
 	OuterLoopForVMStatus:
 		for fixedMgmtIP == "" && status != "ACTIVE" {
 			select {
@@ -165,26 +234,20 @@ func PostKaaSHandler() gin.HandlerFunc {
 						}
 					}
 				}
-				time.Sleep(1 * time.Second)
+				time.Sleep(5 * time.Second)
 			}
 		}
 
-		// 4. Wait for the main k8s control-Plane node to be ready
-		// 	  Retry to get cluster info from the main k8s control-Plane node by SSH
-		//    And save the k8s cluster's hash & token data in DB (MongoDB)
-
+		// 5.2 run SSH command with some timeout to get kubeadm join command
 		keyFile := filepath.Join(filepath.Dir(mainPath), "ssh/k8s.pem")
-
 		sshClient := utils.SSH{
 			IP:   fixedMgmtIP, // use Mgmt IP, but it is not known yet.
 			User: "centos",
 			Port: 22,
 			Cert: keyFile, // Password or Key file path
 		}
-
 		var kubeadmJoinOutput string
 		timeout = time.After(120 * time.Second) // Set the timeout to 120 seconds
-
 	OuterLoopForSSH:
 		for kubeadmJoinOutput == "" {
 			select {
@@ -192,25 +255,37 @@ func PostKaaSHandler() gin.HandlerFunc {
 				fmt.Println("Timeout reached")
 				break OuterLoopForSSH // Exit the outer loop if timeout is reached
 			default:
+				remainingTime := time.Until(<-timeout)
+				fmt.Println("Remaining time For SSH connection try to Main Control Plane:", remainingTime)
 				kubeadmJoinOutput, err = utils.GetKubeadmJoinOutput(sshClient, utils.CertPublicKeyFile)
 				if err != nil {
-					fmt.Println(err)
+					time.Sleep(5 * time.Second)
 					break
 				}
 				fmt.Println(kubeadmJoinOutput)
-				time.Sleep(1 * time.Second)
+				break OuterLoopForSSH
 			}
 		}
 
-		// 5. Make the Data-plane nodes on openstack
+		// 6. Make to join k8s cluster for Data-plane nodes by giving and running shell script
+		// 	  From Main control-plane node to ready-Data-plane nodes
+		var wg sync.WaitGroup
+		wg.Add(len(kaasRequest.DataPlaneNodes) + len(kaasRequest.ControlPlaneNodes) - 1)
+		go func() {
+			for i := 0; i < len(kaasRequest.DataPlaneNodes)+len(kaasRequest.ControlPlaneNodes)-1; i++ {
+				defer wg.Done()
+				response := <-resultChannel
+				// 6.1 SSH to Data-plane node through Main control-plane node as proxy and run kubeadm join command
+				//     Connect main control node first and then connect data plane node through main control node
 
-		// fmt.Println(users)
+				fmt.Println(response)
+			}
+		}()
+		wg.Wait()
 
 		c.JSON(http.StatusOK, gin.H{
-			"content":  kaasRequest,
-			"keypair":  keypair,
-			"response": responseOfServerCreation,
-			"cmd":      kubeadmJoinOutput,
+			"keypair": keypair,
+			"cmd":     kubeadmJoinOutput,
 		})
 	}
 }

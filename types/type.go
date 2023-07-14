@@ -31,15 +31,19 @@ type ServerCreateRequest struct {
 }
 
 type KaasCreateRequest struct {
-	Name      string `json:"name"`
-	Version   string `json:"version"`
-	NetworkId string `json:"network"`
-	KeyName   string `json:"keypair"`
-	Flavor    string `json:"flavor"`
-	Nodes     []struct {
-		Kind    string `json:"kind"`
-		FixedIP string `json:"fixed_ip"`
-	}
+	Name              string `json:"name"`
+	Version           string `json:"version"`
+	NetworkId         string `json:"network"`
+	KeyName           string `json:"keypair"`
+	Flavor            string `json:"flavor"`
+	ControlPlaneNodes []Node `json:"control_plane_nodes"`
+	DataPlaneNodes    []Node `json:"data_plane_nodes"`
 	// Image    string `json:"image"`
 	// Script string `json:"user_data"`
+}
+
+type Node struct {
+	Kind    string `json:"kind"`
+	FixedIP string `json:"fixed_ip"`
+	Main    *bool  `json:"main,omitempty"`
 }
