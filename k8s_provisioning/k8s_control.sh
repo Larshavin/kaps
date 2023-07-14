@@ -1,5 +1,9 @@
 #!/bin/sh
 
+echo "============= k8s control install =============="
+export HOME=/home/centos
+export os_user_id=1000
+echo "check HOME path => " $HOME
 echo "================================================"
 
 # RHEL/CentOS 7 have reported traffic issues being routed incorrectly due to iptables bypassed
@@ -34,15 +38,16 @@ echo "================================================"
 
 sudo mkdir -p $HOME/.kube
 sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
-sudo chown $(id -u):$(id -g) $HOME/.kube/config
+sudo chown ${os_user_id}:${os_user_id} $HOME/.kube/config
 
 echo "================================================"
 
 # helm 설치
+echo $PATH
 export PATH=/usr/local/bin:$PATH # sudo의 경로를 설정해줘야함.
 sudo curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
 sudo chmod 700 get_helm.sh
-sudo ./get_helm.sh
+sudo bash get_helm.sh
 
 echo "================================================"
 
@@ -66,3 +71,4 @@ echo "================================================"
 # alias kubectl to k
 echo 'alias k=kubectl' >> $HOME/.bashrc
 echo 'complete -F __start_kubectl k' >> $HOME/.bashrc
+source $HOME/.bashrc
