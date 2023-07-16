@@ -10,7 +10,7 @@ import (
 	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
-//	@title			Swagger Example API
+//	@title			KAPS API document
 //	@version		1.0
 //	@description	This is a sample server celler server.
 //	@termsOfService	http://swagger.io/terms/
