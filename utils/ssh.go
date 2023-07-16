@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"strings"
 	"time"
 
 	"golang.org/x/crypto/ssh"
@@ -23,6 +24,7 @@ type SSH struct {
 	Port int
 	// session *ssh.Session
 	client *ssh.Client
+	Config *ssh.ClientConfig
 }
 
 func (S *SSH) readPublicKeyFile(file string) ssh.AuthMethod {
@@ -65,6 +67,8 @@ func (S *SSH) Connect(mode int) error {
 		Timeout: time.Second * DefaultTimeout,
 	}
 
+	S.Config = sshConfig
+
 	client, err := ssh.Dial("tcp", fmt.Sprintf("%s:%d", S.IP, S.Port), sshConfig)
 	if err != nil {
 		fmt.Println(err)
@@ -95,26 +99,25 @@ func (S *SSH) RunCmd(cmd string) (string, error) {
 	return string(out), nil
 }
 
-// RunCmd for specific reason : get kubeadm join command from k8s control-plane node
-func GetKubeadmJoinOutput(client SSH, mode int) (string, error) {
+// Change Client using ssh client as a proxy ( ssh client -> ssh server1 -> ssh server2 )
+// Server 1 & Server 2 share same ssh key and user info ( ex: centos )
+// If two servers have different ssh key and user info, you should use different ssh config in NewClientConn.
+func (S *SSH) ChangeClient(client *ssh.Client, ip string) error {
 
-	err := client.Connect(mode) // If you are using a key file, use 'CertPublicKeyFile' instead. // [1 = CertPublicKeyFile, 2 = CertPassword]
+	clientConn, err := client.Dial("tcp", fmt.Sprintf("%s:%d", ip, S.Port))
 	if err != nil {
-		return "", err
+		fmt.Println(err)
+		return err
 	}
 
-	_, err = client.RunCmd("cloud-init status --wait") // blocking effect until cloud-init is complete
+	ncc, chans, reqs, err := ssh.NewClientConn(clientConn, ip, S.Config)
 	if err != nil {
-		return "", err
+		fmt.Println(err)
+		return err
 	}
-
-	dataPlaneJoinCommand, err := client.RunCmd(`kubeadm token create --print-join-command`)
-	if err != nil {
-		return "", err
-	}
-
-	defer client.Close()
-	return dataPlaneJoinCommand, nil
+	sClient := ssh.NewClient(ncc, chans, reqs)
+	S.client = sClient
+	return nil
 }
 
 // RunCmd for general purpose. Input cmd is slice of string.
@@ -137,4 +140,70 @@ func GetSSHOutputs(client SSH, mode int, cmd []string) ([]string, error) {
 
 	defer client.Close()
 	return outputs, nil
+}
+
+// RunCmd for specific reason : get kubeadm join command from k8s control-plane node
+func GetKubeadmJoinOutput(client SSH, mode int) (string, error) {
+
+	err := client.Connect(mode) // If you are using a key file, use 'CertPublicKeyFile' instead. // [1 = CertPublicKeyFile, 2 = CertPassword]
+	if err != nil {
+		return "", err
+	}
+
+	_, err = client.RunCmd("cloud-init status --wait") // blocking effect until cloud-init is complete
+	if err != nil {
+		return "", err
+	}
+
+	dataPlaneJoinCommand, err := client.RunCmd(`kubeadm token create --print-join-command`)
+	if err != nil {
+		return "", err
+	}
+
+	str := strings.Replace(dataPlaneJoinCommand, "\n", "", -1)
+
+	defer client.Close()
+	return str, nil
+}
+
+// RunCmd by proxied ssh client
+func InjectDataplaneJoin(client SSH, mode int, cmd string, destIP string) (string, error) {
+	err := client.Connect(mode) // If you are using a key file, use 'CertPublicKeyFile' instead. // [1 = CertPublicKeyFile, 2 = CertPassword]
+	if err != nil {
+		return "", err
+	}
+
+	err = client.ChangeClient(client.client, destIP)
+	if err != nil {
+		return "", err
+	}
+
+	cmd1 := `sudo tee /etc/sysctl.d/k8s.conf <<EOF
+	net.bridge.bridge-nf-call-ip6tables = 1
+	net.bridge.bridge-nf-call-iptables = 1
+	EOF`
+	cmd2 := `sudo modprobe br_netfilter`
+	cmd3 := `sudo sysctl net.ipv4.ip_forward=1`
+	_, err = client.RunCmd(cmd1)
+	if err != nil {
+		return "", err
+	}
+	_, err = client.RunCmd(cmd2)
+	if err != nil {
+		return "", err
+	}
+	_, err = client.RunCmd(cmd3)
+	if err != nil {
+		return "", err
+	}
+
+	output, err := client.RunCmd(cmd) // Cmd is `kubeadm join ...` for data-plane node
+	if err != nil {
+		return "", err
+	}
+
+	// str := strings.Replace(output, "\n", "", -1)
+
+	defer client.Close()
+	return output, nil
 }

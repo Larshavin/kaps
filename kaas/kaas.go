@@ -47,7 +47,7 @@ func PostKaaSHandler() gin.HandlerFunc {
 		// 0. Connect Websocket to Client & setup server create channel
 
 		mainResultChannel := make(chan map[string]interface{})
-		resultChannel := make(chan map[string]interface{})
+		resultChannel := make(chan string)
 
 		// 1. Save Nodes information(cluster info) in DB (MongoDB)
 
@@ -128,7 +128,9 @@ func PostKaaSHandler() gin.HandlerFunc {
 						FixedIP: &kaasRequest.ControlPlaneNodes[i].FixedIP,
 					},
 					{
-						UUID:    "abe6e177-dd45-4923-9cbd-ae2a09ce4fb9", // mgmt : "abe6e177-dd45-4923-9cbd-ae2a09ce4fb9", provider :"d64dbfc6-46de-4f2c-8b65-12c9d29a8b7e",
+						// UUID is manually assigned. But It will be different in another openstack environment.
+						// mgmt : "abe6e177-dd45-4923-9cbd-ae2a09ce4fb9", provider :"d64dbfc6-46de-4f2c-8b65-12c9d29a8b7e",
+						UUID:    "abe6e177-dd45-4923-9cbd-ae2a09ce4fb9",
 						FixedIP: nil,
 					},
 				}
@@ -154,9 +156,9 @@ func PostKaaSHandler() gin.HandlerFunc {
 					panic(err)
 				}
 				fmt.Println(mainControlPlaneNode.Server.Name, responseOfServerCreation)
-				go func() {
-					resultChannel <- responseOfServerCreation
-				}()
+				go func(i int) {
+					resultChannel <- kaasRequest.ControlPlaneNodes[i].FixedIP
+				}(i)
 			}
 		}
 
@@ -195,9 +197,9 @@ func PostKaaSHandler() gin.HandlerFunc {
 				panic(err)
 			}
 			fmt.Println(mainControlPlaneNode.Server.Name, responseOfServerCreation)
-			go func() {
-				resultChannel <- responseOfServerCreation
-			}()
+			go func(i int) {
+				resultChannel <- kaasRequest.DataPlaneNodes[i].FixedIP
+			}(i)
 		}
 
 		// 5. Handle creation response from main control-plane node and run SSH command to get join command
@@ -239,6 +241,7 @@ func PostKaaSHandler() gin.HandlerFunc {
 		}
 
 		// 5.2 run SSH command with some timeout to get kubeadm join command
+		// Private key file has to be saved in the same directory as the main.go file (not implimented yet)
 		keyFile := filepath.Join(filepath.Dir(mainPath), "ssh/k8s.pem")
 		sshClient := utils.SSH{
 			IP:   fixedMgmtIP, // use Mgmt IP, but it is not known yet.
@@ -274,11 +277,13 @@ func PostKaaSHandler() gin.HandlerFunc {
 		go func() {
 			for i := 0; i < len(kaasRequest.DataPlaneNodes)+len(kaasRequest.ControlPlaneNodes)-1; i++ {
 				defer wg.Done()
-				response := <-resultChannel
-				// 6.1 SSH to Data-plane node through Main control-plane node as proxy and run kubeadm join command
-				//     Connect main control node first and then connect data plane node through main control node
-
-				fmt.Println(response)
+				createdIP := <-resultChannel
+				// 6.1 SSH to Data-plane node through Main control-plane node as proxy. And run kubeadm join command
+				result, err := utils.InjectDataplaneJoin(sshClient, utils.CertPublicKeyFile, createdIP, kubeadmJoinOutput)
+				if err != nil {
+					panic(err)
+				}
+				fmt.Println(result)
 			}
 		}()
 		wg.Wait()
