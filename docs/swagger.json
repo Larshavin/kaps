@@ -186,6 +186,9 @@
                 },
                 "main": {
                     "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
                 }
             }
         },

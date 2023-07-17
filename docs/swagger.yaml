@@ -29,6 +29,8 @@ definitions:
         type: string
       main:
         type: boolean
+      name:
+        type: string
     type: object
   types.Server:
     properties:

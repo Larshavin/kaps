@@ -193,6 +193,9 @@ const docTemplate = `{
                 },
                 "main": {
                     "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
                 }
             }
         },

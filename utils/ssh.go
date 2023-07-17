@@ -151,10 +151,15 @@ func GetKubeadmJoinOutput(client SSH, mode int) (string, error) {
 		return "", err
 	}
 
+	fmt.Println("SSH connection established")
+	fmt.Println("Waiting For Cloud-init to complete... It takes about few minute.")
+
 	_, err = client.RunCmd("cloud-init status --wait") // blocking effect until cloud-init is complete
 	if err != nil {
 		return "", err
 	}
+
+	fmt.Println("Get kubeadm join command")
 
 	dataPlaneJoinCommand, err := client.RunCmd(`kubeadm token create --print-join-command`)
 	if err != nil {

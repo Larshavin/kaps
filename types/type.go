@@ -1,5 +1,9 @@
 package types
 
+import (
+	"go.mongodb.org/mongo-driver/mongo"
+)
+
 type Identity struct {
 	Username   string
 	Password   string
@@ -46,4 +50,19 @@ type Node struct {
 	Kind    string `json:"kind"`
 	FixedIP string `json:"fixed_ip"`
 	Main    *bool  `json:"main,omitempty"`
+	Name    string
+}
+
+type K8SCluster struct {
+	Name      string `json:"name"`
+	Version   string `json:"version"`
+	NetworkId string `json:"network"`
+	KeyName   string `json:"keypair"`
+	ProjectId string `json:"project_id"`
+	Members   []Node `json:"members"`
+}
+
+type MongoDB struct {
+	URI    string
+	Client *mongo.Client
 }

@@ -29,7 +29,7 @@ import (
 //	@Failure		404
 //	@Failure		500
 //	@Router			/api/kaas/{id} [post]
-func PostKaaSHandler() gin.HandlerFunc {
+func PostKaaSHandler(mongoDB *types.MongoDB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 
 		projectID := c.Param("id")
@@ -37,6 +37,8 @@ func PostKaaSHandler() gin.HandlerFunc {
 			panic("project id is empty")
 		}
 
+		var k8sCluster types.K8SCluster
+		var members []types.Node
 		var kaasRequest types.KaasCreateRequest
 		err := c.BindJSON(&kaasRequest)
 		if err != nil {
@@ -44,13 +46,18 @@ func PostKaaSHandler() gin.HandlerFunc {
 		}
 		fmt.Println(kaasRequest)
 
+		k8sCluster.Name = kaasRequest.Name
+		k8sCluster.Version = kaasRequest.Version
+		k8sCluster.NetworkId = kaasRequest.NetworkId
+		k8sCluster.KeyName = kaasRequest.KeyName
+		k8sCluster.ProjectId = projectID
+
 		// 0. Connect Websocket to Client & setup server create channel
 
 		mainResultChannel := make(chan map[string]interface{})
 		resultChannel := make(chan string)
 
-		// 1. Save Nodes information(cluster info) in DB (MongoDB)
-
+		// 1. Import shell script for Control Plane Node
 		// 1.1 Read the contents of the shell script file for main control-plane node
 		// Get the path to the main.go file
 		mainPath, err := os.Getwd()
@@ -122,6 +129,12 @@ func PostKaaSHandler() gin.HandlerFunc {
 				},
 			}
 			if *kaasRequest.ControlPlaneNodes[i].Main {
+				members = append(members, types.Node{
+					FixedIP: kaasRequest.ControlPlaneNodes[i].FixedIP,
+					Name:    randomString,
+					Kind:    "cp",
+					Main:    kaasRequest.ControlPlaneNodes[i].Main,
+				})
 				mainControlPlaneNode.Server.Networks = []types.ServerCreateNetwork{
 					{
 						UUID:    kaasRequest.NetworkId,
@@ -144,6 +157,11 @@ func PostKaaSHandler() gin.HandlerFunc {
 					mainResultChannel <- responseOfServerCreation
 				}()
 			} else {
+				members = append(members, types.Node{
+					FixedIP: kaasRequest.ControlPlaneNodes[i].FixedIP,
+					Name:    randomString,
+					Kind:    "cp",
+				})
 				mainControlPlaneNode.Server.Networks = []types.ServerCreateNetwork{
 					{
 						UUID:    kaasRequest.NetworkId,
@@ -170,6 +188,11 @@ func PostKaaSHandler() gin.HandlerFunc {
 			if err != nil {
 				panic(err)
 			}
+			members = append(members, types.Node{
+				FixedIP: kaasRequest.DataPlaneNodes[i].FixedIP,
+				Name:    randomString,
+				Kind:    "dp",
+			})
 			var mainControlPlaneNode types.ServerCreateRequest
 			mainControlPlaneNode.Server.Name = kaasRequest.Name + "-dp-" + randomString
 			mainControlPlaneNode.Server.Flavor = "3"
@@ -299,9 +322,14 @@ func PostKaaSHandler() gin.HandlerFunc {
 		}()
 		wg.Wait()
 
+		// 7. Save Nodes information(cluster info) in DB (MongoDB)
+		k8sCluster.Members = members
+		utils.MongoDBInsertCluster(mongoDB, k8sCluster)
+
 		c.JSON(http.StatusOK, gin.H{
 			"keypair": keypair,
 			"cmd":     kubeadmJoinOutput,
+			"members": members,
 		})
 	}
 }

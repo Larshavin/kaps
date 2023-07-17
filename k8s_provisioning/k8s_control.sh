@@ -42,19 +42,9 @@ sudo chown ${os_user_id}:${os_user_id} $HOME/.kube/config
 
 echo "================================================"
 
-# helm 설치
-echo $PATH
-export PATH=/usr/local/bin:$PATH # sudo의 경로를 설정해줘야함.
-sudo curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
-sudo chmod 700 get_helm.sh
-sudo bash get_helm.sh
-
-echo "================================================"
-
-# helm으로 calico CNI 설치 => 설치 경로 패치가 잦은듯?
-helm repo add projectcalico https://docs.tigera.io/calico/charts
-kubectl create namespace tigera-operator
-helm install calico projectcalico/tigera-operator --version v3.26.0 --namespace tigera-operator
+sudo mkdir -p /root/.kube
+sudo cp -i /etc/kubernetes/admin.conf /root/.kube/config
+sudo chown ${os_user_id}:${os_user_id} /root/.kube/config
 
 echo "================================================"
 
@@ -70,5 +60,8 @@ echo "================================================"
 
 # alias kubectl to k
 echo 'alias k=kubectl' >> $HOME/.bashrc
+echo 'alias k=kubectl' >> /root/.bashrc
 echo 'complete -F __start_kubectl k' >> $HOME/.bashrc
+echo 'complete -F __start_kubectl k' >> /root/.bashrc
 source $HOME/.bashrc
+source /root/.bashrc

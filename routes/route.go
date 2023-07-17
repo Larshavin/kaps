@@ -10,7 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func PublicRoutes(g *gin.RouterGroup) {
+func PublicRoutes(g *gin.RouterGroup, mongoDB *types.MongoDB) {
 	g.GET("/api/", IndexGetHandler())
 	g.GET("/api/user", getOpenstackUserHandler())
 	g.GET("/api/server", getOpensStackServerListHandler())
@@ -18,7 +18,7 @@ func PublicRoutes(g *gin.RouterGroup) {
 	g.GET("/api/image", getOpenStackImageListHandler())
 	g.GET("/api/network", getOpenStackNetworkListHandler())
 	g.POST("/api/server/:id", postOpenstackServerCreateHandler())
-	g.POST("/api/kaas/:id", kaas.PostKaaSHandler())
+	g.POST("/api/kaas/:id", kaas.PostKaaSHandler(mongoDB))
 }
 
 func IndexGetHandler() gin.HandlerFunc {
