@@ -82,7 +82,7 @@ info:
     name: Apache 2.0
     url: http://www.apache.org/licenses/LICENSE-2.0.html
   termsOfService: http://swagger.io/terms/
-  title: Swagger Example API
+  title: KAPS API document
   version: "1.0"
 paths:
   /api/kaas/{id}:

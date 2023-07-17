@@ -273,7 +273,7 @@ var SwaggerInfo = &swag.Spec{
 	Host:             "192.168.15.248:3000",
 	BasePath:         "/",
 	Schemes:          []string{},
-	Title:            "Swagger Example API",
+	Title:            "KAPS API document",
 	Description:      "This is a sample server celler server.",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,

@@ -7,15 +7,17 @@ This is the K8s [Cluster API](https://cluster-api.sigs.k8s.io/) or Openstack [Ma
 
 # Progress
 
-![30%](http://progress-bar.dev/25?title=kaps)
+![30%](http://progress-bar.dev/30?title=kaps)
 
 :checkered_flag: **Status**
 
  &ensp; :heavy_check_mark: Using Openstack API without [gopher cloud package](http://gophercloud.io/)
 
- &ensp; :heavy_check_mark: Create Automatically Control-Plane Virtual Machine on Openstack
+ &ensp; :heavy_check_mark: Create Automatically Control-Plane & Data-Plane Virtual Machine(VM) on Openstack
  
  &ensp; :heavy_check_mark: Export K8S Cloud access token, hash info from created Control-Plane VM (~ 5min m1.medium size)
+
+ &ensp; :heavy_check_mark: Inject kubeadm's Join cmd to Data-Plane Node VM.
 
 # Quick Start
 

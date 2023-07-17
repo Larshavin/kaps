@@ -191,6 +191,12 @@ func PostKaaSHandler() gin.HandlerFunc {
 					UUID:    kaasRequest.NetworkId,
 					FixedIP: &kaasRequest.DataPlaneNodes[i].FixedIP,
 				},
+				// {
+				// 	// UUID is manually assigned. But It will be different in another openstack environment.
+				// 	// mgmt : "abe6e177-dd45-4923-9cbd-ae2a09ce4fb9", provider :"d64dbfc6-46de-4f2c-8b65-12c9d29a8b7e",
+				// 	UUID:    "d64dbfc6-46de-4f2c-8b65-12c9d29a8b7e",
+				// 	FixedIP: nil,
+				// },
 			}
 			responseOfServerCreation, err := openstack.CreateServer(tokenID, projectID, mainControlPlaneNode)
 			if err != nil {
@@ -251,6 +257,7 @@ func PostKaaSHandler() gin.HandlerFunc {
 		}
 		var kubeadmJoinOutput string
 		timeout = time.After(120 * time.Second) // Set the timeout to 120 seconds
+		remainingTime := 120 * time.Second
 	OuterLoopForSSH:
 		for kubeadmJoinOutput == "" {
 			select {
@@ -258,14 +265,13 @@ func PostKaaSHandler() gin.HandlerFunc {
 				fmt.Println("Timeout reached")
 				break OuterLoopForSSH // Exit the outer loop if timeout is reached
 			default:
-				remainingTime := time.Until(<-timeout)
 				fmt.Println("Remaining time For SSH connection try to Main Control Plane:", remainingTime)
 				kubeadmJoinOutput, err = utils.GetKubeadmJoinOutput(sshClient, utils.CertPublicKeyFile)
 				if err != nil {
-					time.Sleep(5 * time.Second)
+					time.Sleep(10 * time.Second)
+					remainingTime -= 10 * time.Second
 					break
 				}
-				fmt.Println(kubeadmJoinOutput)
 				break OuterLoopForSSH
 			}
 		}
@@ -276,14 +282,19 @@ func PostKaaSHandler() gin.HandlerFunc {
 		wg.Add(len(kaasRequest.DataPlaneNodes) + len(kaasRequest.ControlPlaneNodes) - 1)
 		go func() {
 			for i := 0; i < len(kaasRequest.DataPlaneNodes)+len(kaasRequest.ControlPlaneNodes)-1; i++ {
-				defer wg.Done()
+				defer func() {
+					wg.Done()
+					if r := recover(); r != nil {
+						// Handle the panic here, such as logging the error
+						fmt.Println("Panic occurred:", r)
+					}
+				}()
 				createdIP := <-resultChannel
 				// 6.1 SSH to Data-plane node through Main control-plane node as proxy. And run kubeadm join command
-				result, err := utils.InjectDataplaneJoin(sshClient, utils.CertPublicKeyFile, createdIP, kubeadmJoinOutput)
+				_, err := utils.InjectDataplaneJoin(sshClient, utils.CertPublicKeyFile, `sudo `+kubeadmJoinOutput, createdIP)
 				if err != nil {
 					panic(err)
 				}
-				fmt.Println(result)
 			}
 		}()
 		wg.Wait()

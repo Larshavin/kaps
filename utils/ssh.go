@@ -126,6 +126,7 @@ func GetSSHOutputs(client SSH, mode int, cmd []string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
+	fmt.Println("SSH connection established")
 
 	outputs := []string{}
 
@@ -186,19 +187,24 @@ func InjectDataplaneJoin(client SSH, mode int, cmd string, destIP string) (strin
 	cmd3 := `sudo sysctl net.ipv4.ip_forward=1`
 	_, err = client.RunCmd(cmd1)
 	if err != nil {
+		fmt.Println("cmd1 error : ", err)
 		return "", err
 	}
 	_, err = client.RunCmd(cmd2)
 	if err != nil {
+		fmt.Println("cmd2 error : ", err)
 		return "", err
 	}
 	_, err = client.RunCmd(cmd3)
 	if err != nil {
+		fmt.Println("cmd3 error : ", err)
 		return "", err
 	}
 
+	fmt.Printf("CMD : %s \n", cmd)
 	output, err := client.RunCmd(cmd) // Cmd is `kubeadm join ...` for data-plane node
 	if err != nil {
+		fmt.Println("join cmd error : ", err)
 		return "", err
 	}
 
