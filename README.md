@@ -7,17 +7,31 @@ This is the K8s [Cluster API](https://cluster-api.sigs.k8s.io/) or Openstack [Ma
 
 # Progress
 
-![30%](http://progress-bar.dev/30?title=kaps)
+![35%](http://progress-bar.dev/35?title=kaps)
 
 :checkered_flag: **Status**
 
  &ensp; :heavy_check_mark: Using Openstack API without [gopher cloud package](http://gophercloud.io/)
 
- &ensp; :heavy_check_mark: Create Automatically Control-Plane & Data-Plane Virtual Machine(VM) on Openstack
+ &ensp; :heavy_check_mark: Create Automatically (only one) Control-Plane & Data-Plane Virtual Machine(VM) on Openstack
  
  &ensp; :heavy_check_mark: Export K8S Cloud access token, hash info from created Control-Plane VM (~ 5min m1.medium size)
 
  &ensp; :heavy_check_mark: Inject kubeadm's Join cmd to Data-Plane Node VM.
+
+ &ensp; :x: Create LB or API Gateway webserver for access to data plane node (They have no floating IP for external user)
+
+ &ensp; :x: Support Multi Control-Plane Cluster 
+
+ &ensp; :x: Middleware authentication
+
+ &ensp; :x: Manage cluster info by using Database (Postgresql or MongoDB)
+
+ &ensp; :x: Connect to private image repository (Pull images such as calico CNI project ... )
+
+ &ensp; :x: K8S cluster Health Checking 
+
+ &ensp; :heavy_exclamation_mark: Support only Centos8 image now
 
 # Quick Start
 
@@ -88,7 +102,8 @@ flowchart LR
 │   └── type.go
 └── utils
     ├── file.go
-    └── rand.go
+	├── rand.go
+    └── ssh.go
 ```
 
 # Docs
