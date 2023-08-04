@@ -21,13 +21,17 @@ This is the K8s [Cluster API](https://cluster-api.sigs.k8s.io/) or Openstack [Ma
 
  &ensp; :x: Create LB or API Gateway webserver for access to data plane node (They have no floating IP for external user)
 
+ &ensp;&ensp;&ensp;&ensp; :heavy_check_mark: Study Envoy Proxy & Emissary Ingress Controller
+
  &ensp; :x: Support Multi Control-Plane Cluster 
 
  &ensp; :x: Middleware authentication
 
- &ensp; :x: Manage cluster info by using Database (Postgresql or MongoDB)
+ &ensp; :heavy_check_mark: Manage cluster info by using Database (Postgresql or MongoDB)
 
  &ensp; :x: Connect to private image repository (Pull images such as calico CNI project ... )
+  
+ &ensp;&ensp;&ensp;&ensp; :heavy_check_mark: Create Helm repo 
 
  &ensp; :x: K8S cluster Health Checking 
 
