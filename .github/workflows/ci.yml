@@ -1,0 +1,31 @@
+# k8s-CI-CD /.github/workflows/ci.yml (integration)
+
+# This workflow will build a golang project
+# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-go
+
+name: Go Build & Test
+
+on:
+  push:
+    branches: develop
+
+jobs:
+
+  build:
+    runs-on: [self-hosted, linux, x64]
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: 1.20
+
+    - name: Install dependencies
+      run: go get .
+        
+    - name: Build
+      run: go build -v ./...
+
+    - name: Test
+      run: go test -v ./...
