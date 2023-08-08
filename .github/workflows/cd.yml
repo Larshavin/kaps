@@ -21,7 +21,8 @@ jobs:
         run: |
           VERSION=$(echo ${{ github.sha }} | cut -c1-8)
           echo VERSION=$VERSION
-          echo "::set-output name=version::$VERSION"
+          # echo "::set-output name=version::$VERSION"
+          echo "{version}={VERSION}" >> $GITHUB_OUTPUT
       -
         name: Set up QEMU
         uses: docker/setup-qemu-action@v2
@@ -35,12 +36,23 @@ jobs:
           registry: ${{ secrets.HARBOR_URL }}
           username: ${{ secrets.HARBOR_USERNAME }}
           password: ${{ secrets.HARBOR_PASSWORD }}
-      -
-        name: Build and push
-        uses: docker/build-push-action@v3
-        with:
-          push: true
-          tags: ${{ env.IMAGE_NAME }}:${{ steps.image.outputs.version }}
+      # -
+        # name: Build and push
+        # uses: docker/build-push-action@v4
+        # with:
+        #   provenance: false
+        #   push: true
+        #   tags: ${{ env.IMAGE_NAME }}:${{ steps.image.outputs.version }}
+        
+      - name: Build image manualy
+        run: docker build --tag ${{ secrets.HARBOR_URL }}/${{ env.IMAGE_NAME }}:${{ steps.image.outputs.version }} --target production .
+
+      - name: Check docker image
+        run: docker image ls
+      
+      - name: Push to harbor manualy
+        run: docker push ${{ secrets.HARBOR_URL }}/${{ env.IMAGE_NAME }}:${{ steps.image.outputs.version }}
+
 
   # delivery:
   #   runs-on: [self-hosted, linux, x64]
