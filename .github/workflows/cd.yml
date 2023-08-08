@@ -32,7 +32,7 @@ jobs:
         name: Login to Harbor
         uses: docker/login-action@v2
         with:
-          repository: ${{ secrets.HARBOR_URL }}
+          registry: ${{ secrets.HARBOR_URL }}
           username: ${{ secrets.HARBOR_USERNAME }}
           password: ${{ secrets.HARBOR_PASSWORD }}
       -
