@@ -1,0 +1,83 @@
+# k8s-CI-CD /.github/workflows/cd.yml (delivery)
+
+name: CD process (Making docker image and change argocd repo)
+
+on:
+  push:
+    branches:
+      - main
+env:
+  IMAGE_NAME: kaps/kaps
+jobs:
+  docker:
+    runs-on: [self-hosted, linux, x64]
+    steps:
+      - 
+        name: Check out code
+        uses: actions/checkout@v3
+      -
+        name: Get verion
+        id: image
+        run: |
+          VERSION=$(echo ${{ github.sha }} | cut -c1-8)
+          echo VERSION=$VERSION
+          echo "::set-output name=version::$VERSION"
+      -
+        name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+      -
+        name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+      -
+        name: Login to Harbor
+        uses: docker/login-action@v2
+        with:
+          repository: ${{ secrets.HARBOR_URL }}
+          username: ${{ secrets.HARBOR_USERNAME }}
+          password: ${{ secrets.HARBOR_PASSWORD }}
+      -
+        name: Build and push
+        uses: docker/build-push-action@v3
+        with:
+          push: true
+          tags: ${{ env.IMAGE_NAME }}:${{ steps.image.outputs.version }}
+
+  # delivery:
+  #   runs-on: [self-hosted, linux, x64]
+  #   needs: docker
+
+  #   steps:    
+  #     - name: Get verion
+  #       id: image
+  #       run: |
+  #         VERSION=$(echo ${{ github.sha }} | cut -c1-8)
+  #         echo VERSION=$VERSION
+  #         echo "::set-output name=version::$VERSION"
+
+  #     - name: Checkout Argocd Repository
+  #       uses: actions/checkout@v3
+  #       with:
+  #         repository: Larshavin/argocd-repository
+  #         token: ${{ secrets.TOKEN_FORWIZ }} 
+  #         path: webserver
+          
+  #     - name: change directory to argocd-repository/webserver
+  #       run: |
+  #         ls -al
+
+  #     - name: Update Kubernetes resources by yq
+  #       uses: mikefarah/yq@master
+  #       with:
+  #         cmd: yq --inplace '.spec.template.spec.containers[image]="${{ env.IMAGE_NAME }}:${{ steps.image.outputs.version }}"' webserver-deployment.yaml
+          
+  #     - name: change directory to argocd-repository/webserver
+  #       run: |
+  #         cat webserver-deployment.yaml
+          
+  #     - name: Commit files
+  #       run: |
+  #         cd argocd-repository
+  #         git config --global user.email "gkdlgkdl@naver.com"
+  #         git config --global user.name "Larshavin"
+  #         git commit -am "Update image tag as ${{ steps.image.outputs.version }}"
+  #         git push -u origin main

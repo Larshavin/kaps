@@ -62,5 +62,5 @@ func main() {
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 	public := router.Group("/")
 	routes.PublicRoutes(public, MongoDB)
-	router.Run("192.168.15.248:3000")
+	router.Run("0.0.0.0:3000")
 }
