@@ -22,7 +22,8 @@ jobs:
           VERSION=$(echo ${{ github.sha }} | cut -c1-8)
           echo VERSION=$VERSION
           # echo "::set-output name=version::$VERSION"
-          echo "version={VERSION}" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo {steps.image.outputs.version}
       -
         name: Set up QEMU
         uses: docker/setup-qemu-action@v2
